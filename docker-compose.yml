@@ -57,6 +57,11 @@ services:
     environment:
       DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    # prisma db seed가 ts-node로 prisma/seed.ts(src/... 절대경로 import)를 실행하는데,
+    # 운영 이미지엔 src 원본과 tsconfig.json이 없어 실패함. seed용으로만 호스트 소스를 읽기전용 주입.
+    volumes:
+      - ../kronex-server/src:/app/src:ro
+      - ../kronex-server/tsconfig.json:/app/tsconfig.json:ro
     ports:
       - "${SERVER_PORT:-3000}:3000"
     healthcheck:
