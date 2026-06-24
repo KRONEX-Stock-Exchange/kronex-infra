@@ -1,16 +1,25 @@
 services:
   mysql:
     image: mysql:8.0
-    # root 비밀번호 = .env MYSQL_PASSWORD, DB명 = MYSQL_DATABASE
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-1234}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-stock}
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_PASSWORD:-1234}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -18,8 +27,8 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin123}
     ports:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "${RABBITMQ_MGMT_PORT:-15672}:15672"
@@ -29,43 +38,26 @@ services:
       timeout: 5s
       retries: 10
 
-  engine:
-    build:
-      context: ../kronex-engine
-    env_file: .env
-    # .env의 host 는 localhost이므로 컨테이너 네트워크 서비스명으로 덮어씀
-    environment:
-      MYSQL_HOST: mysql
-      RABBITMQ_HOST: rabbitmq
-      WAL_DIR: /data/wal
-    volumes:
-      - engine-wal:/data/wal
-    # 테이블을 만드는 서버의 prisma migrate가 끝난 뒤에 떠야 함
-    depends_on:
-      mysql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      server:
-        condition: service_healthy
-
   server:
     build:
       context: ../kronex-server
     env_file: .env
-    # .env URL은 localhost이므로  서비스명 기준으로 덮어씀
     environment:
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
-    # prisma db seed가 ts-node로 prisma/seed.ts(src/... 절대경로 import)를 실행하는데,
-    # 운영 이미지엔 src 원본과 tsconfig.json이 없어 실패함. seed용으로만 호스트 소스를 읽기전용 주입.
+      DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-1234}@mysql:3306/${MYSQL_DATABASE:-stock}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:5672
     volumes:
       - ../kronex-server/src:/app/src:ro
       - ../kronex-server/tsconfig.json:/app/tsconfig.json:ro
     ports:
       - "${SERVER_PORT:-3000}:3000"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -74,6 +66,54 @@ services:
       mysql:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+
+  engine:
+    build:
+      context: ../kronex-engine
+    env_file: .env
+    environment:
+      MYSQL_HOST: mysql
+      RABBITMQ_HOST: rabbitmq
+      WAL_DIR: /data/wal
+    volumes:
+      - engine-wal:/data/wal
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+
+  realtime-server:
+    build:
+      context: .
+    env_file: .env
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-1234}@mysql:3306/${MYSQL_DATABASE:-stock}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:5672
+      REALTIME_SERVER_PORT: 3001
+    ports:
+      - "${REALTIME_SERVER_PORT:-3001}:3001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(3001,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      server:
         condition: service_healthy
 
 volumes:
