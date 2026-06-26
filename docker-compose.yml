@@ -55,8 +55,8 @@ services:
       context: ../kronex-server
     env_file: .env
     environment:
-      DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-1234}@mysql:${MYSQL_PORT:?MYSQL_PORT is required}/${MYSQL_DATABASE:-stock}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:${RABBITMQ_PORT:?RABBITMQ_PORT is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL is required}
       SERVER_PORT: ${SERVER_PORT:?SERVER_PORT is required}
     volumes:
       - ../kronex-server/src:/app/src:ro
@@ -86,6 +86,8 @@ services:
       context: ../kronex-engine
     env_file: .env
     environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL is required}
       MYSQL_HOST: mysql
       MYSQL_PORT: ${MYSQL_PORT:?MYSQL_PORT is required}
       RABBITMQ_HOST: rabbitmq
@@ -106,8 +108,8 @@ services:
       context: ../kronex-realtime-server
     env_file: .env
     environment:
-      DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-1234}@mysql:${MYSQL_PORT:?MYSQL_PORT is required}/${MYSQL_DATABASE:-stock}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASSWORD:-admin123}@rabbitmq:${RABBITMQ_PORT:?RABBITMQ_PORT is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL is required}
       REALTIME_SERVER_PORT: ${REALTIME_SERVER_PORT:?REALTIME_SERVER_PORT is required}
     ports:
       - "${REALTIME_SERVER_PORT:?REALTIME_SERVER_PORT is required}:${REALTIME_SERVER_PORT:?REALTIME_SERVER_PORT is required}"
