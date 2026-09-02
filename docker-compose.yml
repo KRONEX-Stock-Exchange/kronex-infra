@@ -1,6 +1,13 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   mysql:
     image: mysql:8.0
+    logging: *default-logging
     command: --binlog-expire-logs-seconds=259200
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-1234}
@@ -27,6 +34,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    logging: *default-logging
     hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
@@ -44,6 +52,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    logging: *default-logging
     command: >
       redis-server
       --maxmemory ${REDIS_MAXMEMORY:-8gb}
@@ -63,6 +72,7 @@ services:
   server:
     build:
       context: ../kronex-server
+    logging: *default-logging
     env_file: .env
     environment:
       DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-1234}@mysql:3306/${MYSQL_DATABASE:-stock}
@@ -93,6 +103,11 @@ services:
   engine:
     build:
       context: ../kronex-engine
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
     env_file: .env
     environment:
       MYSQL_HOST: mysql
@@ -111,6 +126,7 @@ services:
   realtime-server:
     build:
       context: ../kronex-realtime-server
+    logging: *default-logging
     env_file: .env
     environment:
       DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-1234}@mysql:3306/${MYSQL_DATABASE:-stock}
@@ -147,6 +163,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
         VITE_REALTIME_URL: ${VITE_REALTIME_URL:-http://localhost:3001}
+    logging: *default-logging
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:
